@@ -1,4 +1,4 @@
-KEy AWS PROJECTS
+KEY AWS PROJECTS
 1 Deploying static website in EC2 and S3
 - SERVICES TO BE USED
       * EC2
