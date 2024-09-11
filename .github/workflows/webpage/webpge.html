@@ -1,0 +1,74 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animal Image Viewer</title>
+<style>
+    #animal-images {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .animal-image {
+        margin: 10px;
+    }
+    .body{
+        background-color: #dff7f4;
+    }
+</style>
+</head>
+<body class="body">
+
+<h2>Select an animal:</h2>
+
+<select id="animal-select" onchange="displayAnimalImages()">
+    <option value="">Select an animal</option>
+    <option value="all">All images</option>
+    <option value="cat">cat</option>
+    <option value="dog">dog</option>
+    <option value="horse">horse</option>
+    <!-- Add more animal options as needed -->
+</select>
+
+<div id="animal-images"></div>
+
+<script>
+function displayAnimalImages() {
+    var selectedAnimal = document.getElementById("animal-select").value;
+    var animalImagesDiv = document.getElementById("animal-images");
+    animalImagesDiv.innerHTML = ""; // Clear previous images
+
+    var animals = ["cat", "dog", "horse"]; // List of available animals
+    var numberOfImagesToShow = 3; // Change this number as needed
+
+    if (selectedAnimal === "") {
+        return ; // No animal selected, so do nothing
+    }
+
+    if (selectedAnimal === "all") {
+        for (var j = 0; j < animals.length; j++) {
+            for (var i = 1; i <= numberOfImagesToShow; i++) {
+                var img = document.createElement("img");
+                img.src = "image/" + animals[j] + i + ".jpg"; // Path to your images
+                img.alt = animals[j];
+                img.className = "animal-image";
+                animalImagesDiv.appendChild(img);
+            }
+        }
+    } else {
+        for (var i = 1; i <= numberOfImagesToShow; i++) {
+            var img = document.createElement("img");
+            img.src = "image/" + selectedAnimal + i + ".jpg"; // Path to your images
+            img.alt = selectedAnimal;
+            img.className = "animal-image";
+            animalImagesDiv.appendChild(img);
+        }
+    }
+}
+</script>
+
+</body>
+</html>
