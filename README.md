@@ -22,6 +22,7 @@ KEY AWS PROJECTS
        * Code Commit
        * Code Deploz
        * Code Pipeline
+       * ECS service
        
   4 Data Migration - Migrate DB using Database Migration Services
   
