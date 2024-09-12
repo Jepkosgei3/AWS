@@ -15,14 +15,13 @@ KEY AWS PROJECTS
     * SQS
     * API Gateway
       
-  3 Cloud Native CI-CD Pipeline
-  
-    - SERVICES USED
-       * Github Actions
-       * Code Commit
-       * Code Deploz
-       * Code Pipeline
-       * ECS service
+  3 Cloud Native CI-CD Pipeline:::Deploy to Amazon ECS
+
+  - SERVICES USED
+    * Github Actions for deploying
+    * ECR Service: Creating Repository
+    * ECS service ::Creating ECS Task Definition, Cluster, Service
+    * Linux: Running Docker and deploying to ECR Repository
        
   4 Data Migration - Migrate DB using Database Migration Services
   
