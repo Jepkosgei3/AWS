@@ -3,7 +3,7 @@
         {
             "name": "my-ecs-container",
             "image": "905418044666.dkr.ecr.us-east-1.amazonaws.com/my-ecr-repo",
-            "cpu": 0,
+            "cpu": 256,
             "portMappings": [
                 {
                     "name": "my-ecs-container-80-tcp",
