@@ -1,0 +1,22 @@
+Plan:
+Terraform Setup: I'll use Terraform to create all the required AWS resources, ensuring no manual steps (clickops) in the AWS Console. Terraform will manage EC2, Lambda, CloudFront, and S3.
+
+Networking:
+I'll set up a VPC with private subnets, so resources like EC2 will be in a private network.
+CloudFront will be the only publicly accessible service, with TLS optional for now.
+
+EC2 and WebSocket:
+The EC2 instance will run the backend, and the WebSocket API will be hosted on it.
+I'll configure Terraform to install and run the backend API automatically during instance provisioning (using User Data).
+
+S3 Bucket and Frontend:
+I'll upload the frontend code to an S3 bucket and serve it through CloudFront.
+
+Security:
+A Security Group will be attached to the EC2 instance to allow WebSocket traffic.
+CloudFront will manage access control.
+HTTP-only cookies will be used to reject requests to /api/v1/ws as per the task's criteria.
+Tagging:
+
+All resources created will be tagged with poc01-* to meet the tagging requirements.
+Terraform Module: Superterr.tf
