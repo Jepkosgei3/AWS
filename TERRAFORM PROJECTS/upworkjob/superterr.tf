@@ -11,6 +11,19 @@ resource "aws_vpc" "poc01_vpc" {
     environment = "poc01"
   }
 }
+#Public Subnets
+resource "aws_subnet" "poc01_public_subnet" {
+  count       = 2
+  vpc_id      = aws_vpc.poc01_vpc.id
+  cidr_block  = cidrsubnet(aws_vpc.poc01_vpc.cidr_block, 8, count.index + 2)  # Adjust the CIDR block for the public subnet  availability_zone = element(data.aws_availability_zones.available.names, count.index)
+  
+  map_public_ip_on_launch = true  # Automatically assign public IPs on EC2 instance launch
+
+  tags = {
+    Name        = "poc01-public-subnet-${count.index + 1}"
+    environment = "poc01"
+  }
+}
 
 # Private Subnets
 resource "aws_subnet" "poc01_private_subnet" {
@@ -27,8 +40,9 @@ resource "aws_subnet" "poc01_private_subnet" {
 # Internet Gateway (CloudFront only)
 resource "aws_internet_gateway" "poc01_igw" {
   vpc_id = aws_vpc.poc01_vpc.id
+
   tags = {
-    Name = "poc01-igw"
+    Name        = "poc01-internet-gateway"
     environment = "poc01"
   }
 }
@@ -92,7 +106,7 @@ resource "aws_instance" "poc01_ec2" {
   instance_type = "t2.micro"
   key_name = aws_key_pair.poc01_key.key_name
   subnet_id = aws_subnet.poc01_private_subnet[0].id
-  security_groups = [aws_security_group.poc01_ec2_sg.name]
+  vpc_security_group_ids = [aws_security_group.poc01_ec2_sg.id]
   
   # WebSocket API setup via User Data
   user_data = <<-EOF
@@ -190,15 +204,20 @@ resource "aws_lambda_permission" "poc01_lambda_permission" {
 # S3 Bucket for Frontend
 resource "aws_s3_bucket" "poc01_s3" {
   bucket = "poc01-frontend-bucket"
+
   tags = {
-    Name = "poc01-s3-bucket"
+    Name        = "poc01-s3-bucket"
     environment = "poc01"
   }
 }
 
-resource "aws_s3_bucket_acl" "poc01_s3_acl" {
-  bucket = aws_s3_bucket.poc01_s3.bucket
-  acl    = "public-read"
+resource "aws_s3_bucket_public_access_block" "poc01_s3_public_access" {
+  bucket = aws_s3_bucket.poc01_s3.id
+
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = false
+  restrict_public_buckets = false
 }
 
 # CloudFront Distribution
