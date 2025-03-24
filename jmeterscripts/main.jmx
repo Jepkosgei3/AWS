@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="OpenStack Load Test" enabled="true">
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+    </TestPlan>
+    <hashTree>
+      <!-- Thread Group for 300 requests in 300 seconds -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="API Load Test" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">-1</stringProp> <!-- Run indefinitely until duration is reached -->
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">500</stringProp> <!-- Number of concurrent users -->
+        <stringProp name="ThreadGroup.ramp_time">60</stringProp> <!-- Ramp-up time in seconds -->
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">300</stringProp> <!-- Test duration in seconds -->
+      </ThreadGroup>
+      <hashTree>
+        <!-- Step 1: Read credentials from CSV -->
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set Config" enabled="true">
+          <stringProp name="filename">credentials.csv</stringProp>
+          <stringProp name="variableNames">OS_AUTH_URL,OS_USERNAME,OS_PASSWORD,OS_PROJECT_NAME,OS_PROJECT_DOMAIN_NAME,OS_USER_DOMAIN_NAME</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <boolProp name="shareMode">All threads</boolProp>
+        </CSVDataSet>
+        <hashTree/>
+
+        <!-- Step 2: Authenticate to get the token -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Token" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/auth/tokens</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <stringProp name="HTTPSampler.arguments">
+            {"auth": {"identity": {"methods": ["password"], "password": {"user": {"name": "${OS_USERNAME}", "domain": {"name": "${OS_USER_DOMAIN_NAME}"}, "password": "${OS_PASSWORD}"}}, "scope": {"project": {"name": "${OS_PROJECT_NAME}", "domain": {"name": "${OS_PROJECT_DOMAIN_NAME}"}}}}}}
+          </stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- Step 3: Extract the token from the response -->
+        <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Token" enabled="true">
+          <stringProp name="JSONPostProcessor.referenceNames">token</stringProp>
+          <stringProp name="JSONPostProcessor.jsonPathExpr">$.token.id</stringProp>
+        </JSONPostProcessor>
+        <hashTree/>
+
+        <!-- Step 4: Add the token to the header for subsequent requests -->
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Headers" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">Content-Type</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+            <elementProp name="" elementType="Header">
+              <stringProp name="Header.name">X-Auth-Token</stringProp>
+              <stringProp name="Header.value">${token}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+
+        <!-- Step 5: Constant Throughput Timer to control requests per second -->
+        <ConstantThroughputTimer guiclass="ConstantThroughputTimerGui" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <stringProp name="throughput">60</stringProp> <!-- 60 requests per minute = 1 request per second -->
+        </ConstantThroughputTimer>
+        <hashTree/>
+
+        <!-- Step 6: Fetch metadata from various endpoints -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Images" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/glance</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Flavors" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/nova</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Load Balancers" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/octavia</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Cluster Blueprint" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/cluster</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Volume Types" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/cinder</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+        </HTTPSamplerProxy>
+        <hashTree/>
+
+        <!-- Add more HTTP Requests for other endpoints as needed -->
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

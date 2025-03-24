@@ -1,0 +1,49 @@
+2025/03/22 17:23:22 INFO  - jmeter.util.JMeterUtils: Setting Locale to en 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: Loading user properties from: /usr/share/jmeter/bin/user.properties 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: Loading system properties from: /usr/share/jmeter/bin/system.properties 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: Copyright (c) 1998-2015 The Apache Software Foundation 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: Version 2.13.19691222 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: java.version=17.0.14 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: java.vm.name=OpenJDK 64-Bit Server VM 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: os.name=Linux 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: os.arch=amd64 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: os.version=5.15.153.1-microsoft-standard-WSL2 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: file.encoding=UTF-8 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: Default Locale=English 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: JMeter  Locale=English 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: JMeterHome=/usr/share/jmeter 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: user.dir  =/mnt/c/Users/LENOVO YOGA 370/Downloads/aws projects/Devops30day/NBA DATALAKE_AZURE/jmeterscript 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: PWD       =/mnt/c/Users/LENOVO YOGA 370/Downloads/aws projects/Devops30day/NBA DATALAKE_AZURE/jmeterscript 
+2025/03/22 17:23:22 INFO  - jmeter.JMeter: IP: 127.0.1.1 Name: DESKTOP-H7SVMSM FullName: DESKTOP-H7SVMSM. 
+2025/03/22 17:23:22 INFO  - jmeter.services.FileServer: Default base='/mnt/c/Users/LENOVO YOGA 370/Downloads/aws projects/Devops30day/NBA DATALAKE_AZURE/jmeterscript' 
+2025/03/22 17:23:22 INFO  - jmeter.services.FileServer: Set new base='/mnt/c/Users/LENOVO YOGA 370/Downloads/aws projects/Devops30day/NBA DATALAKE_AZURE/jmeterscript' 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: Testplan (JMX) version: 2.2. Testlog (JTL) version: 2.2 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: Using SaveService properties version 2.8 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: Using SaveService properties file version 1656252 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: Using SaveService properties file encoding UTF-8 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: All converter versions present and correct 
+2025/03/22 17:23:22 INFO  - jmeter.save.SaveService: Loading file: main.jmx 
+2025/03/22 17:23:22 ERROR - jmeter.JMeter: Error in NonGUIDriver com.thoughtworks.xstream.security.ForbiddenClassException: org.apache.jmeter.save.ScriptWrapper
+	at com.thoughtworks.xstream.security.NoTypePermission.allows(NoTypePermission.java:26)
+	at com.thoughtworks.xstream.mapper.SecurityMapper.realClass(SecurityMapper.java:74)
+	at com.thoughtworks.xstream.mapper.MapperWrapper.realClass(MapperWrapper.java:125)
+	at org.apache.jmeter.save.SaveService$XStreamWrapper$1.realClass(SaveService.java:94)
+	at com.thoughtworks.xstream.mapper.MapperWrapper.realClass(MapperWrapper.java:125)
+	at com.thoughtworks.xstream.mapper.CachingMapper.realClass(CachingMapper.java:47)
+	at com.thoughtworks.xstream.core.util.HierarchicalStreams.readClassType(HierarchicalStreams.java:29)
+	at com.thoughtworks.xstream.core.TreeUnmarshaller.start(TreeUnmarshaller.java:133)
+	at com.thoughtworks.xstream.core.AbstractTreeMarshallingStrategy.unmarshal(AbstractTreeMarshallingStrategy.java:32)
+	at com.thoughtworks.xstream.XStream.unmarshal(XStream.java:1392)
+	at com.thoughtworks.xstream.XStream.unmarshal(XStream.java:1377)
+	at com.thoughtworks.xstream.XStream.fromXML(XStream.java:1262)
+	at org.apache.jmeter.save.SaveService.readTree(SaveService.java:559)
+	at org.apache.jmeter.save.SaveService.loadTree(SaveService.java:537)
+	at org.apache.jmeter.JMeter.runNonGui(JMeter.java:751)
+	at org.apache.jmeter.JMeter.startNonGui(JMeter.java:738)
+	at org.apache.jmeter.JMeter.start(JMeter.java:397)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.apache.jmeter.NewDriver.main(NewDriver.java:264)
+
