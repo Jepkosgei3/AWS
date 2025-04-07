@@ -2,3 +2,6 @@ requests
 matplotlib
 dash
 python-dotenv
+statistics
+pandas
+plotly
