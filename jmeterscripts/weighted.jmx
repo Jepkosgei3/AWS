@@ -1,0 +1,650 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Platform9 OpenStack Test" enabled="true">
+      <stringProp name="TestPlan.comments">Updated Test Plan for Platform9 OpenStack with fixed authentication</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="API Thread Group" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">100</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">10</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp>
+        <stringProp name="ThreadGroup.duration">120</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- Credentials Configuration -->
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Credentials CSV" enabled="true">
+          <stringProp name="filename">credentials.csv</stringProp>
+          <stringProp name="variableNames">OS_USERNAME,OS_PASSWORD,OS_PROJECT_NAME,OS_USER_DOMAIN_NAME,OS_PROJECT_DOMAIN_NAME</stringProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="recycle">true</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <!-- Debug Credentials -->
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug Credentials" enabled="true">
+          <stringProp name="displayJMeterProperties">false</stringProp>
+          <stringProp name="displayJMeterVariables">true</stringProp>
+          <stringProp name="displaySystemProperties">false</stringProp>
+        </DebugSampler>
+        <hashTree/>
+        <!-- Authenticate to get the token -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Token" enabled="true">
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="body" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{
+  "auth": {
+    "identity": {
+      "methods": ["password"],
+      "password": {
+        "user": {
+          "name": "${OS_USERNAME}",
+          "domain": { "name": "${OS_USER_DOMAIN_NAME}" },
+          "password": "${OS_PASSWORD}"
+        }
+      }
+    },
+    "scope": {
+      "project": {
+        "name": "${OS_PROJECT_NAME}",
+        "domain": { "name": "${OS_PROJECT_DOMAIN_NAME}" }
+      }
+    }
+  }
+}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/auth/tokens</stringProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <stringProp name="HTTPSampler.content_encoding">application/json</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Token Response" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">201</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <stringProp name="Assertion.custom_message">Failed to obtain token: Expected 201, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor" testname="Extract Token" enabled="true">
+            <stringProp name="RegexExtractor.useHeaders">true</stringProp>
+            <stringProp name="RegexExtractor.refname">TOKEN</stringProp>
+            <stringProp name="RegexExtractor.regex">X-Subject-Token: (.+?)\r\n</stringProp>
+            <stringProp name="RegexExtractor.template">$1$</stringProp>
+            <stringProp name="RegexExtractor.default">TOKEN_NOT_FOUND</stringProp>
+            <stringProp name="RegexExtractor.match_number">1</stringProp>
+          </RegexExtractor>
+          <hashTree/>
+          <BeanShellPostProcessor guiclass="BeanShellPostProcessorGui" testclass="BeanShellPostProcessor" testname="Log Token" enabled="true">
+            <stringProp name="script">if (vars.get("TOKEN") == null || vars.get("TOKEN").equals("TOKEN_NOT_FOUND")) {
+    log.error("Token extraction failed. Response headers: " + prev.getResponseHeaders());
+} else {
+    log.info("Token extracted successfully: " + vars.get("TOKEN"));
+}</stringProp>
+          </BeanShellPostProcessor>
+          <hashTree/>
+        </hashTree>
+        <!-- Header Manager for all authenticated requests -->
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Headers" enabled="true">
+          <collectionProp name="HeaderManager.headers">
+            <elementProp name="Content-Type" elementType="Header">
+              <stringProp name="Header.name">Content-Type</stringProp>
+              <stringProp name="Header.value">application/json</stringProp>
+            </elementProp>
+            <elementProp name="X-Auth-Token" elementType="Header">
+              <stringProp name="Header.name">X-Auth-Token</stringProp>
+              <stringProp name="Header.value">${TOKEN}</stringProp>
+            </elementProp>
+          </collectionProp>
+        </HeaderManager>
+        <hashTree/>
+        <!-- Get Ubuntu-22.04 Image -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Ubuntu Image" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/glance/v2/images?name=Ubuntu-22.04</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Image ID" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">IMAGE_UUID</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.images[0].id</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">IMAGE_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Image Response" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <stringProp name="Assertion.custom_message">Failed to retrieve image: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+          <BeanShellPostProcessor guiclass="BeanShellPostProcessorGui" testclass="BeanShellPostProcessor" testname="Log Image Response" enabled="true">
+            <stringProp name="script">if (prev.getResponseCode().equals("200")) {
+    log.info("Successfully retrieved Ubuntu image. Image UUID: " + vars.get("IMAGE_UUID"));
+} else {
+    log.error("Failed to retrieve Ubuntu image. Response code: " + prev.getResponseCode() + ", Response: " + prev.getResponseDataAsString());
+}</stringProp>
+          </BeanShellPostProcessor>
+          <hashTree/>
+        </hashTree>
+        <!-- Get m1.large Flavor -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get m1.large Flavor" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/nova/v2.1/flavors?name=m1.large</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Flavor ID" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">FLAVOR_UUID</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.flavors[0].id</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">FLAVOR_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Flavor Response" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <stringProp name="Assertion.custom_message">Failed to retrieve flavor: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <!-- Get ExtProvNet Network -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get ExtProvNet" enabled="true">
+          <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <stringProp name="HTTPSampler.path">/neutron/v2.0/networks?name=ExtProvNet</stringProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Network ID" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">NETWORK_UUID</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.networks[0].id</stringProp>
+            <stringProp name="JSONPostProcessor.defaultValues">NETWORK_NOT_FOUND</stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Network Response" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="0">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+            <stringProp name="Assertion.custom_message">Failed to retrieve network: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+        <!-- Debug UUIDs -->
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug UUIDs" enabled="true">
+          <stringProp name="displayJMeterProperties">false</stringProp>
+          <stringProp name="displayJMeterVariables">true</stringProp>
+          <stringProp name="displaySystemProperties">false</stringProp>
+        </DebugSampler>
+        <hashTree/>
+        <!-- Tasks (30%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Tasks (30%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">30</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">150</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Tasks" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/glance/v2/tasks</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Tasks Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list tasks: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Instances (25%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Instances (25%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">25</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">125</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Instances" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/nova/v2.1/servers</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Instances Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list instances: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Projects (19%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Projects (19%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">19</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">95</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Projects" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/keystone/v3/projects</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Projects Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list projects: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Search (10%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Search (10%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">10</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">50</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Search Instances" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/nova/v2.1/servers/detail?name=test</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Search Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to search instances: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Images (6%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Images (6%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">6</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">30</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Images" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/glance/v2/images</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Images Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list images: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Keystone (3%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Keystone (3%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">3</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">15</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Users" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/keystone/v3/users</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Users Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list users: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Volumes (2%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Volumes (2%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">2</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">10</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Volume Types" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/cinder/v3/types</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Volume Types Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list volume types: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Projects (2%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Projects (2%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">2</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">10</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Project" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/keystone/v3/projects/${OS_PROJECT_NAME}</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Project Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to get project: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Domains (1%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Domains (1%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">1</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">5</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="List Domains" enabled="true">
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/keystone/v3/domains</stringProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Domains Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to list domains: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Instance Creation (1%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Instance Creation (1%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">1</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">5</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Create Server" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="body" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{
+  "server": {
+    "name": "load-test-server-${__Random(1,10000)}",
+    "imageRef": "${IMAGE_UUID}",
+    "flavorRef": "${FLAVOR_UUID}",
+    "networks": [{
+      "uuid": "${NETWORK_UUID}"
+    }],
+    "key_name": "pchawla-key",
+    "security_groups": [{
+      "name": "test-sg"
+    }]
+  }
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/nova/v2.1/servers</stringProp>
+            <stringProp name="HTTPSampler.method">POST</stringProp>
+            <stringProp name="HTTPSampler.content_encoding">application/json</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Server ID" enabled="true">
+              <stringProp name="JSONPostProcessor.referenceNames">SERVER_ID</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.server.id</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues">SERVER_NOT_CREATED</stringProp>
+            </JSONPostProcessor>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Create Server Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">202</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to create server: Expected 202, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Instance Update (1%) -->
+        <ThroughputController guiclass="ThroughputControllerGui" testclass="ThroughputController" testname="Instance Update (1%)" enabled="true">
+          <intProp name="ThroughputController.style">1</intProp>
+          <stringProp name="ThroughputController.percentage">1</stringProp>
+          <stringProp name="ThroughputController.maxThroughput">5</stringProp>
+        </ThroughputController>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Update Server" enabled="true">
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="body" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.value">{
+  "server": {
+    "name": "updated-server-${__Random(1,10000)}"
+  }
+}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+            <stringProp name="HTTPSampler.domain">sa-demo-region1.app.qa-pcd.platform9.com</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.path">/nova/v2.1/servers/${SERVER_ID}</stringProp>
+            <stringProp name="HTTPSampler.method">PUT</stringProp>
+            <stringProp name="HTTPSampler.content_encoding">application/json</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Check Update Server Response" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="0">200</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">8</intProp>
+              <stringProp name="Assertion.custom_message">Failed to update server: Expected 200, got ${JMeterUtils.getPropDefault('Assertion.response_code')}</stringProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <!-- Throughput Control -->
+        <ConstantThroughputTimer guiclass="ConstantThroughputTimerGui" testclass="ConstantThroughputTimer" testname="Constant Throughput Timer" enabled="true">
+          <stringProp name="ConstantThroughputTimer.throughput">250.0</stringProp>
+          <intProp name="ConstantThroughputTimer.calcMode">1</intProp>
+        </ConstantThroughputTimer>
+        <hashTree/>
+        <!-- Results Collection -->
+        <ResultCollector guiclass="ViewResultsTreeGui" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>true</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="SummaryReportGui" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>true</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename">results.jtl</stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
